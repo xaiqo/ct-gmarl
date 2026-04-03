@@ -1,7 +1,8 @@
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Tuple
+
 import torch
 import torch.nn as nn
-from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Any, Optional
 
 
 class BaseAgent(nn.Module, ABC):
