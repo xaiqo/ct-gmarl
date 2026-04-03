@@ -1,0 +1,11 @@
+# CT-GMARL Model Configuration
+# Quantitative parameters for the Spatial/Temporal reasoning components.
+name: "ct_gmarl"
+hidden_dim: 128
+gat_heads: 4
+dropout: 0.2
+alpha: 0.2
+# Neural ODE Solver Parameters
+ode_solver: "rk4"       # Options: euler, rk4 (fixed-step for speed)
+ode_steps: 4            # Number of integration steps per asynchronous jump
+tolerance: 1e-3         # Adaptive tolerance (if using adaptive solvers)
