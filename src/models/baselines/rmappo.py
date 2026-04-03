@@ -1,7 +1,8 @@
+from typing import Any, Dict, Tuple
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from typing import Dict, Tuple, Any, Optional
+import torch.nn.functional as F  # noqa: N812
 
 from src.models.base import BaseAgent
 

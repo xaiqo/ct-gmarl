@@ -1,7 +1,8 @@
+from typing import Any, Dict, Tuple
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from typing import Dict, Tuple, Any, Optional
+import torch.nn.functional as F  # noqa: N812
 
 from src.models.base import BaseAgent
 
@@ -100,7 +101,7 @@ class QMIXAgent(BaseAgent):
         q_values = self.q_head(h_new)
 
         # Epsilon-greedy rollout (Heuristic provided by Trainer or fixed here)
-        epsilon = kwargs.get('epsilon', 0.05)
+        _ = kwargs.get('epsilon', 0.05)
 
         # Masking out invalid Q-values
         inf_mask = (1.0 - mask) * -1e9
@@ -126,7 +127,7 @@ class QMIXAgent(BaseAgent):
     def evaluate_actions(self, *args, **kwargs):
         # QMIX doesn't use standard MAPPO evaluate_actions.
         # But we implement a version that returns local Q-values for all actions.
-        obs, h_prev, dt, actions, mask = args[0], args[1], args[2], args[3], args[4]
+        obs, h_prev, _, _, _ = args[0], args[1], args[2], args[3], args[4]
         h_new = self.gru(obs, h_prev)
         q_values = self.q_head(h_new)
 
