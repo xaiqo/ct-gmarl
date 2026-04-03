@@ -1,0 +1,37 @@
+name: CT-GMARL Research CI
+
+on:
+  push:
+    branches: [ main, research/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install Linting Tools
+      run: pip install ruff
+    - name: Run Ruff Check
+      run: ruff check .
+    - name: Run Ruff Format Check
+      run: ruff format --check .
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install Project Dependencies
+      run: |
+        pip install -e .
+    - name: Unit Tests
+      run: python -m pytest tests/
