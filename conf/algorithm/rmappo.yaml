@@ -1,0 +1,11 @@
+# @package _global_
+algorithm: "rmappo"
+lr: 5e-4
+beta: 0.05
+optimization_frequency: 10
+batch_size: 4096
+
+model:
+  hidden_dim: 256
+  obs_dim: 256
+  global_state_dim: 512

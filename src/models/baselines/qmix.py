@@ -76,7 +76,7 @@ class QMIXAgent(BaseAgent):
 
         # Local Q-Network (Discrete temporal)
         self.gru = nn.GRUCell(obs_dim, hidden_dim)
-        self.q_head = nn.Linear(hidden_dim, 62)  # 12 types + 50 IPs
+        self.q_head = nn.Linear(hidden_dim, 32 + 50)  # 32 types + 50 IPs
 
         # Centralized Mixer
         self.mixer = QMixer(n_agents=n_agents, state_dim=global_in_dim)
@@ -94,8 +94,14 @@ class QMIXAgent(BaseAgent):
         mask: torch.Tensor,
         **kwargs,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, Any]]:
+        siem_emb = kwargs.get('siem_embedding')
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
+
+        # SIEM-Fusion for parity with CT-GMARL
+        if siem_emb is not None:
+            obs = obs.clone()
+            obs[:, :128] += siem_emb.view(obs.shape[0], -1)
 
         h_new = self.gru(obs, h_prev)
         q_values = self.q_head(h_new)
@@ -108,11 +114,9 @@ class QMIXAgent(BaseAgent):
         masked_qs = q_values + inf_mask
 
         # Greedy selection
-        # Note: QMIX usually selects best joint action. Here we select best individual types and IPs.
-        # Action space: [12 types, 50 IPs] -> To simplify, we argmax the masked logits.
-
-        a_type = torch.argmax(masked_qs[:, :12], dim=-1)
-        a_target = torch.argmax(masked_qs[:, 12:], dim=-1)
+        # Action space: [max 32 types, 50 IPs]
+        a_type = torch.argmax(masked_qs[:, :32], dim=-1)
+        a_target = torch.argmax(masked_qs[:, 32:], dim=-1)
 
         # Return Q-values as 'log_prob' for uniform API, though MultiTrainer will use them differently
         log_prob = masked_qs.gather(1, a_type.unsqueeze(-1))  # Simplified
@@ -128,6 +132,15 @@ class QMIXAgent(BaseAgent):
         # QMIX doesn't use standard MAPPO evaluate_actions.
         # But we implement a version that returns local Q-values for all actions.
         obs, h_prev, _, _, _ = args[0], args[1], args[2], args[3], args[4]
+        siem_emb = kwargs.get('siem_embedding')
+
+        if obs.dim() == 1:
+            obs = obs.unsqueeze(0)
+
+        if siem_emb is not None:
+            obs = obs.clone()
+            obs[:, :128] += siem_emb.view(obs.shape[0], -1)
+
         h_new = self.gru(obs, h_prev)
         q_values = self.q_head(h_new)
 

@@ -8,7 +8,7 @@ from src.models.base import BaseAgent
 
 
 class MLPActionHeads(nn.Module):
-    def __init__(self, hidden_dim: int, n_types: int = 12, n_targets: int = 50):
+    def __init__(self, hidden_dim: int, n_types: int = 32, n_targets: int = 50):
         super(MLPActionHeads, self).__init__()
         self.policy_type = nn.Linear(hidden_dim, n_types)
         self.policy_target = nn.Linear(hidden_dim, n_targets)
@@ -16,8 +16,8 @@ class MLPActionHeads(nn.Module):
     def forward(
         self, h: torch.Tensor, mask: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        mask_type = mask[:, :12]
-        mask_target = mask[:, 12:]
+        mask_type = mask[:, :32]
+        mask_target = mask[:, 32:]
         logits_type = self.policy_type(h)
         logits_target = self.policy_target(h)
         inf_mask_type = (1.0 - mask_type) * -1e9
@@ -65,8 +65,15 @@ class RMAPPOAgent(BaseAgent):
     ) -> Tuple[
         torch.Tensor, torch.Tensor, Tuple[torch.Tensor, torch.Tensor], Dict[str, Any]
     ]:
+        siem_emb = kwargs.get('siem_embedding')
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
+
+        # SIEM-Fusion for parity with CT-GMARL
+        if siem_emb is not None:
+            # Additive fusion at the input layer
+            obs = obs.clone()
+            obs[:, :128] += siem_emb.view(obs.shape[0], -1)
 
         # Standard LSTM update (ignores continuous dt)
         h_new = self.lstm(obs, h_prev)
@@ -94,8 +101,13 @@ class RMAPPOAgent(BaseAgent):
         mask: torch.Tensor,
         **kwargs,
     ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, Any]]:
+        siem_emb = kwargs.get('siem_embedding')
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
+
+        if siem_emb is not None:
+            obs = obs.clone()
+            obs[:, :128] += siem_emb.view(obs.shape[0], -1)
 
         h_new = self.lstm(obs, h_prev)
 
