@@ -1,0 +1,32 @@
+# Sim2Real Docker Evaluation: 100-Node Topology
+defaults:
+  - config
+  - model: ct_gmarl
+  - override env: enterprise_100
+  - override algorithm: ct_gmarl
+  - _self_
+
+# Evaluation Overrides
+episodes: 20000
+smoke_test: false 
+
+# Environment: Full Docker Hypervisor Integration
+env:
+  sim2real_mode: "real"
+  max_ticks: 1000
+
+# Competitive Deployment
+algorithms: [["ct_gmarl"], ["ct_gmarl"]]
+blue_algorithm: "ct_gmarl"
+red_algorithm: "ct_gmarl"
+
+# Weights & Biases
+wandb:
+  mode: "online"
+  project: "ct-gmarl-research-eval"
+  name: "Sim2Real_Enterprise_100"
+
+# Hydra Organization
+hydra:
+  run:
+    dir: outputs/research_sim2real_100_${now:%H-%M}
