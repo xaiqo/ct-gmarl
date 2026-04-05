@@ -6,8 +6,8 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import ModelConfigDict, TensorType
 from torch import nn
 
-from .graph_attention import GATLayer, TopologyMessagePasser
-from .ode_rnn import ODERNNCell
+from .gat_processor import MultiHeadGAT
+from .ode_engine import ODERNNCell as TrueODERNNCell
 
 
 class CtGmarlModel(TorchRNN, nn.Module):
@@ -38,15 +38,13 @@ class CtGmarlModel(TorchRNN, nn.Module):
         self.fc_obs = nn.Linear(256 + 128, 256)
 
         # 2. Graph Attention layer for spatial reasoning (e.g. node relationships)
-        self.gat = GATLayer(in_features=256, out_features=128)
+        # NeurIPS Grade: MultiHeadGAT creates informational bottlenecks through topological masking
+        self.gat = MultiHeadGAT(in_features=256, n_hidden=128, n_heads=4)
 
-        # 3. Neural ODE Cell for temporal dynamics
-        self.ode_rnn = ODERNNCell(
-            input_size=128, hidden_size=self.cell_size, solver='rk4'
+        # 3. Neural ODE Cell for temporal dynamics using Adjoint method (torchdiffeq)
+        self.ode_rnn = TrueODERNNCell(
+            input_dim=128, hidden_dim=self.cell_size, solver='rk4'
         )
-
-        # 4. Topology-based Message Passing (DMZ -> Internal -> Restricted)
-        self.message_passer = TopologyMessagePasser(self.cell_size)
 
         # 5. Output Branches
         self.action_branch = nn.Linear(self.cell_size, num_outputs)
@@ -67,24 +65,38 @@ class CtGmarlModel(TorchRNN, nn.Module):
         - obs [63:319]
         - siem_embedding [319:447]
         """
-        action_mask = inputs[:, :, :62]
-        delta_t_norm = inputs[:, :, 62:63]
-        obs = inputs[:, :, 63:319]
-        siem_emb = inputs[:, :, 319:447]
+        # indices for flattened array: action_mask [0:132], adj_matrix [132:10132], delta_t [10132:10133], obs [10133:10389], siem_embedding [10389:10517]
+        action_mask = inputs[:, :, :132]
+        adj_matrix = inputs[:, :, 132:10132].view(-1, inputs.shape[1], 100, 100)
+        delta_t_norm = inputs[:, :, 10132:10133]
+        obs = inputs[:, :, 10133:10389]
+        siem_emb = inputs[:, :, 10389:10517]
 
         # 1. Fuse Raw Obs + NLP Telemetry
         x = torch.cat([obs, siem_emb], dim=-1)
-        x = torch.relu(self.fc_obs(x))
+        x = torch.relu(self.fc_obs(x)) # Shape: (Batch, Seq, 256)
 
         # 2. Apply Graph Attention (Batch, Seq, Features)
-        # Note: In a real simulation edge case, we'd pass a real adjacency matrix.
-        # For the model's self-loop baseline, we use identity.
         batch_size, seq_len, _ = x.size()
-        adj = torch.eye(1).to(x.device).repeat(batch_size * seq_len, 1, 1)
+        
+        # We now use the actual adjacency matrix from the environment!
+        # The mask generation from gat_processor maps 0 connectivity to -1e9
+        from .gat_processor import SubnetMaskGenerator
+        adj_raw = adj_matrix.view(batch_size * seq_len, 100, 100)
+        adj = SubnetMaskGenerator.create_mask(100, adj_raw).to(x.device)
 
-        # Reshape for GAT (Batch*Seq, 1, Features) since GAT handles one graph at a time
-        x_gat = x.view(-1, 1, 256)
-        x_gat = self.gat(x_gat, adj).view(batch_size, seq_len, 128)
+        # Proper Node Formulation for Graph Attention
+        # Instead of repeating the identical flat observation, we treat Node 0 as the 
+        # Gateway/Super node that receives the full telemetry, allowing the MultiHeadGAT 
+        # to reason over the topology and pass the information logically.
+        x_flat = x.view(batch_size * seq_len, 256)
+        x_nodes = torch.zeros(batch_size * seq_len, 100, 256, device=x.device)
+        x_nodes[:, 0, :] = x_flat
+        
+        x_gat = self.gat(x_nodes, adj) # Shape (Batch*Seq, 100, 128)
+        
+        # Pool node embeddings back to graph embedding
+        x_gat = torch.mean(x_gat, dim=1).view(batch_size, seq_len, 128)
 
         # 3. Continuous-Time Neural ODE Integration
         # We iterate over the sequence if seq_len > 1 (during training)
@@ -94,7 +106,7 @@ class CtGmarlModel(TorchRNN, nn.Module):
         for t in range(seq_len):
             xt = x_gat[:, t, :]
             dt = delta_t_norm[:, t, :]
-            h_t = self.ode_rnn(xt, h_t, dt)
+            h_t, nfe = self.ode_rnn(xt, h_t, dt)
             outputs.append(h_t)
 
         x_rnn = torch.stack(outputs, dim=1)

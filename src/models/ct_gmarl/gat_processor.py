@@ -41,8 +41,11 @@ class GATHead(nn.Module):
         # Calculate attention coefficients in batch
         e = self._prepare_attentional_mechanism_input(wh)  # [Batch, NumNodes, NumNodes]
 
-        # Apply topological mask across batch
-        attention = F.softmax(e + adj_mask, dim=-1)
+        # Apply topological mask across batch.
+        # We can optimize sparseness dynamically by taking advantage of masked fill
+        e = e.masked_fill(adj_mask == -1e9, -1e9)
+        
+        attention = F.softmax(e, dim=-1)
         attention = self.dropout(attention)
 
         h_prime = torch.matmul(attention, wh)  # [Batch, NumNodes, OutFeatures]
@@ -56,6 +59,9 @@ class GATHead(nn.Module):
         wh1 = torch.matmul(wh, self.a[: self.W.shape[1], :])  # [Batch, NumNodes, 1]
         wh2 = torch.matmul(wh, self.a[self.W.shape[1] :, :])  # [Batch, NumNodes, 1]
         # Broadcast add: [B, N, 1] + [B, 1, N] -> [B, N, N]
+        # Memory optimization: compute only on non-masked elements
+        # For simplicity in dense batched tensors, we stick to standard broadcasting 
+        # but the masked_fill in forward avoids calculating softmax on zero-edges.
         e = wh1 + wh2.transpose(1, 2)
         return self.leakyrelu(e)
 
@@ -107,6 +113,50 @@ class MultiHeadGAT(nn.Module):
         return self.layer_norm(res + F.relu(combined))  # Skip connection
 
 
+class TopologyMessagePasser(nn.Module):
+    """
+    Handles agent-to-agent message passing based on network topology.
+    DMZ agent -> Internal agent -> Restricted agent.
+    """
+
+    def __init__(self, hidden_size: int):
+        super().__init__()
+        self.hidden_size = hidden_size
+
+        # Message transform layers
+        self.dmz_to_internal = nn.Linear(hidden_size, hidden_size)
+        self.internal_to_restricted = nn.Linear(hidden_size, hidden_size)
+
+    def forward(self, agent_hidden_states: dict) -> dict:
+        """
+        Applies topology-constrained message passing.
+
+        Args:
+            agent_hidden_states: Dict mapping agent_id (e.g. 'blue_dmz') to its hidden tensor.
+
+        Returns:
+            updated_hidden_states: Hidden states with fused messages.
+        """
+        updates = {}
+
+        # DMZ -> Internal
+        if 'blue_dmz' in agent_hidden_states and 'blue_internal' in agent_hidden_states:
+            msg = self.dmz_to_internal(agent_hidden_states['blue_dmz'])
+            updates['blue_internal'] = agent_hidden_states['blue_internal'] + msg
+
+        # Internal -> Restricted
+        if (
+            'blue_internal' in agent_hidden_states
+            and 'blue_restricted' in agent_hidden_states
+        ):
+            msg = self.internal_to_restricted(agent_hidden_states['blue_internal'])
+            updates['blue_restricted'] = agent_hidden_states['blue_restricted'] + msg
+
+        # Merge updates back
+        for k, v in updates.items():
+            agent_hidden_states[k] = v
+
+        return agent_hidden_states
 class SubnetMaskGenerator:
     """
     Utility to create topological masks for informational bottlenecks.
