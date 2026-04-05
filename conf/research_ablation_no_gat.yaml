@@ -1,0 +1,32 @@
+# @package _global_
+# ABLATION: CT-GMARL WITHOUT GAT (Global Pooling Baseline)
+# Proves the value of spatial graph attention in dynamic network architectures.
+
+defaults:
+  - config
+  - model: ct_gmarl
+  - override env: enterprise_100
+  - override algorithm: ct_gmarl
+  - _self_
+
+# Ablation Flags
+model:
+  use_gat: false  # Bypasses Graph Attention for Global Mean Pooling
+
+seed: 2024
+episodes: 20000
+total_steps: 10000000
+batch_size: 4096
+buffer_size: 32768
+
+# Weights & Biases
+wandb:
+  mode: "online"
+  project: "ct-gmarl-research"
+  group: "ablation_studies"
+  name: "Ablation_No_GAT_100"
+
+# Hydra Organization
+hydra:
+  run:
+    dir: outputs/ablation_no_gat_100_${now:%H-%M}
