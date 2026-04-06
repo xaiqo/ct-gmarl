@@ -44,7 +44,7 @@ class GATHead(nn.Module):
         # Apply topological mask across batch.
         # We can optimize sparseness dynamically by taking advantage of masked fill
         e = e.masked_fill(adj_mask == -1e9, -1e9)
-        
+
         attention = F.softmax(e, dim=-1)
         attention = self.dropout(attention)
 
@@ -60,7 +60,7 @@ class GATHead(nn.Module):
         wh2 = torch.matmul(wh, self.a[self.W.shape[1] :, :])  # [Batch, NumNodes, 1]
         # Broadcast add: [B, N, 1] + [B, 1, N] -> [B, N, N]
         # Memory optimization: compute only on non-masked elements
-        # For simplicity in dense batched tensors, we stick to standard broadcasting 
+        # For simplicity in dense batched tensors, we stick to standard broadcasting
         # but the masked_fill in forward avoids calculating softmax on zero-edges.
         e = wh1 + wh2.transpose(1, 2)
         return self.leakyrelu(e)
@@ -157,6 +157,8 @@ class TopologyMessagePasser(nn.Module):
             agent_hidden_states[k] = v
 
         return agent_hidden_states
+
+
 class SubnetMaskGenerator:
     """
     Utility to create topological masks for informational bottlenecks.

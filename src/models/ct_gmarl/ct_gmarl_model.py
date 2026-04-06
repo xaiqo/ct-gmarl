@@ -74,27 +74,28 @@ class CtGmarlModel(TorchRNN, nn.Module):
 
         # 1. Fuse Raw Obs + NLP Telemetry
         x = torch.cat([obs, siem_emb], dim=-1)
-        x = torch.relu(self.fc_obs(x)) # Shape: (Batch, Seq, 256)
+        x = torch.relu(self.fc_obs(x))  # Shape: (Batch, Seq, 256)
 
         # 2. Apply Graph Attention (Batch, Seq, Features)
         batch_size, seq_len, _ = x.size()
-        
+
         # We now use the actual adjacency matrix from the environment!
         # The mask generation from gat_processor maps 0 connectivity to -1e9
         from .gat_processor import SubnetMaskGenerator
+
         adj_raw = adj_matrix.view(batch_size * seq_len, 100, 100)
         adj = SubnetMaskGenerator.create_mask(100, adj_raw).to(x.device)
 
         # Proper Node Formulation for Graph Attention
-        # Instead of repeating the identical flat observation, we treat Node 0 as the 
-        # Gateway/Super node that receives the full telemetry, allowing the MultiHeadGAT 
+        # Instead of repeating the identical flat observation, we treat Node 0 as the
+        # Gateway/Super node that receives the full telemetry, allowing the MultiHeadGAT
         # to reason over the topology and pass the information logically.
         x_flat = x.view(batch_size * seq_len, 256)
         x_nodes = torch.zeros(batch_size * seq_len, 100, 256, device=x.device)
         x_nodes[:, 0, :] = x_flat
-        
-        x_gat = self.gat(x_nodes, adj) # Shape (Batch*Seq, 100, 128)
-        
+
+        x_gat = self.gat(x_nodes, adj)  # Shape (Batch*Seq, 100, 128)
+
         # Pool node embeddings back to graph embedding
         x_gat = torch.mean(x_gat, dim=1).view(batch_size, seq_len, 128)
 

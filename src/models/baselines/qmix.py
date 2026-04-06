@@ -76,7 +76,7 @@ class QMIXAgent(BaseAgent):
 
         # Local Q-Network (Discrete temporal)
         self.gru = nn.GRUCell(obs_dim, hidden_dim)
-        self.q_head = nn.Linear(hidden_dim, 32 + 50)  # 32 types + 50 IPs
+        self.q_head = nn.Linear(hidden_dim, 32 + 100)  # 32 types + 100 IPs
 
         # Centralized Mixer
         self.mixer = QMixer(n_agents=n_agents, state_dim=global_in_dim)

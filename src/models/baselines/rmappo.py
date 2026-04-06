@@ -8,7 +8,7 @@ from src.models.base import BaseAgent
 
 
 class MLPActionHeads(nn.Module):
-    def __init__(self, hidden_dim: int, n_types: int = 32, n_targets: int = 50):
+    def __init__(self, hidden_dim: int, n_types: int = 32, n_targets: int = 100):
         super(MLPActionHeads, self).__init__()
         self.policy_type = nn.Linear(hidden_dim, n_types)
         self.policy_target = nn.Linear(hidden_dim, n_targets)

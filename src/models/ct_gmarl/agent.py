@@ -156,9 +156,7 @@ class CTGMARLAgent(BaseAgent):
 
         log_prob = torch.log(
             dist_type.gather(1, a_type.unsqueeze(-1)).squeeze(-1) + 1e-10
-        ) + torch.log(
-            dist_target.gather(1, a_target.unsqueeze(-1)).squeeze(-1) + 1e-10
-        )
+        ) + torch.log(dist_target.gather(1, a_target.unsqueeze(-1)).squeeze(-1) + 1e-10)
 
         return torch.stack([a_type, a_target], dim=-1), log_prob, h_new, {'nfe': nfe}
 
