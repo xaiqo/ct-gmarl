@@ -1,0 +1,29 @@
+# RMAPPO Baseline Training on 100-Node Enterprise Topology
+
+defaults:
+  - config
+  - model: ct_gmarl
+  - override env: enterprise_100
+  - override algorithm: rmappo
+  - _self_
+
+# Research Overrides
+episodes: 20000
+total_steps: 10000000
+batch_size: 4096
+buffer_size: 32768
+
+# Competitive Pairings
+algorithms: [["rmappo"], ["rmappo"]]
+blue_algorithm: "rmappo"
+red_algorithm: "rmappo"
+
+# Weights & Biases
+wandb:
+  mode: "online"
+  project: "ct-gmarl-research"
+
+# Hydra Organization
+hydra:
+  run:
+    dir: outputs/research_rmappo_100_${now:%H-%M}
