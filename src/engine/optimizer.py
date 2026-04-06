@@ -18,6 +18,9 @@ class ForgeOptimizationHead:
         self.device = device
         self.eps_clip = 0.2
         self.beta = cfg.get('beta', 0.05)
+        self.use_continuous_discounting = cfg.get('optimizer', {}).get(
+            'use_continuous_discounting', True
+        )
         self.gae_lambda = 0.95
 
     def update_team(self, team='blue'):
@@ -58,7 +61,10 @@ class ForgeOptimizationHead:
             gae = 0
             for t in reversed(range(upper)):
                 dt = buffer.delta_ts[t]
-                discount = torch.exp(-self.beta * dt)
+                if self.use_continuous_discounting:
+                    discount = torch.exp(-self.beta * dt)
+                else:
+                    discount = torch.exp(-torch.tensor(self.beta))
                 delta = (
                     buffer.rewards[t]
                     + discount * next_vals[t] * (1.0 - buffer.dones[t])
@@ -70,7 +76,7 @@ class ForgeOptimizationHead:
             buffer.returns[:upper] = advs + vals.unsqueeze(1)
 
     def _ppo_step(self, agent, optimizer, batch):
-        obs, h_p, dt, acts, masks, old_lp, advs, rets, gs, siem = [
+        obs, h_p, dt, acts, masks, old_lp, advs, rets, gs, siem, adj_matrix = [
             batch[k].to(self.device)
             for k in [
                 'obs',
@@ -83,6 +89,7 @@ class ForgeOptimizationHead:
                 'returns',
                 'global_state',
                 'siem_emb',
+                'adj_matrix',
             ]
         ]
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
@@ -94,6 +101,7 @@ class ForgeOptimizationHead:
             acts.view(-1, *acts.shape[2:]),
             masks.view(-1, *masks.shape[2:]),
             siem_embedding=siem.view(-1, *siem.shape[2:]),
+            adj_mask=adj_matrix.view(-1, *adj_matrix.shape[2:]),
         )
 
         ratio = torch.exp(new_lp - old_lp.view(-1, 1))

@@ -43,6 +43,10 @@ class ForgeRolloutRunner:
             'successful_exploits': 0.0,
             'services_restored': 0.0,
             'hosts_isolated': 0.0,
+            'SLA_Uptime_Percentage': 1.0,
+            'MTTC': 0.0,
+            'Red_Dwell_Time': 0.0,
+            'Total_Exfiltrated_Data': 0.0,
         }
 
         total_nfe_blue, total_nfe_red = 0.0, 0.0
@@ -118,11 +122,32 @@ class ForgeRolloutRunner:
         actions_dict, log_probs = {}, {}
         nfe_b, nfe_r = 0.0, 0.0
 
-        for aid in self.manager.blue_agents:
+        shared_blue_h = {}
+
+        # Enforce strict topology ordering: DMZ -> Internal -> Restricted
+        blue_eval_order = []
+        if 'blue_dmz' in self.manager.blue_agents:
+            blue_eval_order.append('blue_dmz')
+        if 'blue_internal' in self.manager.blue_agents:
+            blue_eval_order.append('blue_internal')
+        if 'blue_restricted' in self.manager.blue_agents:
+            blue_eval_order.append('blue_restricted')
+
+        for aid in [a for a in self.manager.blue_agents if a not in blue_eval_order]:
+            blue_eval_order.append(aid)
+
+        for aid in blue_eval_order:
             obs_raw = obs_dict[aid]
-            obs_t, dt_t, mask_t, siem_t = self._to_tensor(obs_raw)
+            obs_t, dt_t, mask_t, siem_t, adj_t = self._to_tensor(obs_raw)
             a, lp, h, ex = blue_agent.select_action(
-                obs_t, h_blue[aid], dt_t, mask_t, siem_embedding=siem_t
+                obs_t,
+                h_blue[aid],
+                dt_t,
+                mask_t,
+                siem_embedding=siem_t,
+                adj_mask=adj_t,
+                agent_id=aid,
+                shared_hidden_states=shared_blue_h,
             )
             actions_dict[aid], log_probs[aid], h_blue[aid] = (
                 [int(a[0, 0]), int(a[0, 1])],
@@ -133,9 +158,9 @@ class ForgeRolloutRunner:
 
         for aid in self.manager.red_agents:
             obs_raw = obs_dict[aid]
-            obs_t, dt_t, mask_t, siem_t = self._to_tensor(obs_raw)
+            obs_t, dt_t, mask_t, siem_t, adj_t = self._to_tensor(obs_raw)
             a, lp, h, ex = red_agent.select_action(
-                obs_t, h_red[aid], dt_t, mask_t, siem_embedding=siem_t
+                obs_t, h_red[aid], dt_t, mask_t, siem_embedding=siem_t, adj_mask=adj_t
             )
             actions_dict[aid], log_probs[aid], h_red[aid] = (
                 [int(a[0, 0]), int(a[0, 1])],
@@ -161,7 +186,14 @@ class ForgeRolloutRunner:
             .to(self.device)
             .unsqueeze(0)
         )
-        return o, dt, m, s
+        adj = (
+            torch.from_numpy(obs_raw['adj_matrix'])
+            .reshape(100, 100)
+            .float()
+            .to(self.device)
+            .unsqueeze(0)
+        )
+        return o, dt, m, s, adj
 
     def _get_gt(self):
         return (
@@ -208,6 +240,12 @@ class ForgeRolloutRunner:
             siem = torch.stack(
                 [torch.from_numpy(o_d[aid]['siem_embedding']).float() for aid in agents]
             )
+            adj = torch.stack(
+                [
+                    torch.from_numpy(o_d[aid]['adj_matrix']).float().reshape(100, 100)
+                    for aid in agents
+                ]
+            )
             d_t = torch.tensor([[d_val]] * len(agents))
             buffer.insert(
                 obs,
@@ -223,6 +261,7 @@ class ForgeRolloutRunner:
                 d_t,
                 probs,
                 siem,
+                adj_matrix=adj,
             )
 
         insert_team(self.manager.blue_agents, self.blue_buffer, h_b)
@@ -240,5 +279,16 @@ class ForgeRolloutRunner:
             if 'blue' in aid.lower():
                 for k in ['false_positives', 'services_restored', 'hosts_isolated']:
                     ep_s[k] += ainfo.get(k, 0.0)
+
+            # Continuous metric tracking (pulling from last info dict)
+            for k in [
+                'SLA_Uptime_Percentage',
+                'MTTC',
+                'Red_Dwell_Time',
+                'Total_Exfiltrated_Data',
+            ]:
+                if k in ainfo:
+                    ep_s[k] = ainfo[k]
+
             if ainfo.get('target_ip_index') is not None:
                 ep_t[aid].append(ainfo['target_ip_index'])

@@ -32,13 +32,14 @@ class POSMDPBuffer:
         )  # LSTM cell states
         self.delta_ts = torch.zeros((capacity, num_agents, 1))
         self.siem_embeddings = torch.zeros((capacity, num_agents, 128))
+        self.adj_matrices = torch.zeros((capacity, num_agents, 100, 100))
 
         # Action & Reward Buffers
         self.actions = torch.zeros((capacity, num_agents, 2), dtype=torch.long)
         self.rewards = torch.zeros((capacity, num_agents, 1))
         self.masks = torch.zeros(
-            (capacity, num_agents, 82)
-        )  # Action masking (32 types + 50 targets)
+            (capacity, num_agents, 132)
+        )  # Action masking (32 types + 100 targets)
         self.log_probs = torch.zeros(
             (capacity, num_agents, 1)
         )  # Policy log-probabilities
@@ -73,6 +74,7 @@ class POSMDPBuffer:
         done: torch.Tensor,
         log_prob: torch.Tensor,
         siem_emb: torch.Tensor = None,
+        adj_matrix: torch.Tensor = None,
     ):
         """
         Inserts a multi-agent transition into the buffer.
@@ -83,6 +85,8 @@ class POSMDPBuffer:
         self.delta_ts[self.ptr] = dt
         if siem_emb is not None:
             self.siem_embeddings[self.ptr] = siem_emb
+        if adj_matrix is not None:
+            self.adj_matrices[self.ptr] = adj_matrix
         self.actions[self.ptr] = action
         self.rewards[self.ptr] = reward
         self.masks[self.ptr] = mask
@@ -117,6 +121,7 @@ class POSMDPBuffer:
             'c_prev': self.c_states[idxs],
             'dt': self.delta_ts[idxs],
             'siem_emb': self.siem_embeddings[idxs],
+            'adj_matrix': self.adj_matrices[idxs],
             'actions': self.actions[idxs],
             'rewards': self.rewards[idxs],
             'masks': self.masks[idxs],
