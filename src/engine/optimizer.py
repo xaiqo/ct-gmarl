@@ -40,8 +40,13 @@ class ForgeOptimizationHead:
             if not batch:
                 continue
 
-            stats = self._ppo_step(agent, optimizer, batch)
-            train_stats.append(stats)
+            # Sub-divide into safe mini-batches to prevent Neural ODE/GAT VRAM thrashing
+            mb_size = self.cfg.get('mini_batch_size', 512)
+            b_len = batch['obs'].shape[0]
+            for i in range(0, b_len, mb_size):
+                mb = {k: v[i:i+mb_size] if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                stats = self._ppo_step(agent, optimizer, mb)
+                train_stats.append(stats)
 
         return (
             {k: np.mean([s[k] for s in train_stats]) for k in train_stats[0].keys()}
