@@ -119,7 +119,9 @@ class QMIXAgent(BaseAgent):
         a_target = torch.argmax(masked_qs[:, 32:], dim=-1)
 
         # Return Q-values as 'log_prob' for uniform API, though MultiTrainer will use them differently
-        log_prob = masked_qs.gather(1, a_type.unsqueeze(-1)).squeeze(-1)  # Simplified 1D shape
+        log_prob = masked_qs.gather(1, a_type.unsqueeze(-1)).squeeze(
+            -1
+        )  # Simplified 1D shape
 
         return (
             torch.stack([a_type, a_target], dim=-1),
@@ -147,7 +149,9 @@ class QMIXAgent(BaseAgent):
         return q_values, torch.zeros_like(q_values), {}
 
     def get_value(self, global_state: torch.Tensor) -> torch.Tensor:
-        return torch.zeros((global_state.shape[0], 1), device=global_state.device)  # Matches PPO uniform shape
+        return torch.zeros(
+            (global_state.shape[0], 1), device=global_state.device
+        )  # Matches PPO uniform shape
 
     def get_q_tot(
         self, agent_qs: torch.Tensor, global_state: torch.Tensor

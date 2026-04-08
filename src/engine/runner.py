@@ -151,7 +151,9 @@ class ForgeRolloutRunner:
             )
             actions_dict[aid] = [int(a[0, 0]), int(a[0, 1])]
             log_probs[aid] = lp
-            h_blue[aid] = tuple(x.detach() for x in h) if isinstance(h, tuple) else h.detach()
+            h_blue[aid] = (
+                tuple(x.detach() for x in h) if isinstance(h, tuple) else h.detach()
+            )
             nfe_b += ex.get('nfe', 1.0)
 
         for aid in self.manager.red_agents:
@@ -162,7 +164,9 @@ class ForgeRolloutRunner:
             )
             actions_dict[aid] = [int(a[0, 0]), int(a[0, 1])]
             log_probs[aid] = lp
-            h_red[aid] = tuple(x.detach() for x in h) if isinstance(h, tuple) else h.detach()
+            h_red[aid] = (
+                tuple(x.detach() for x in h) if isinstance(h, tuple) else h.detach()
+            )
             nfe_r += ex.get('nfe', 1.0)
 
         return actions_dict, log_probs, nfe_b, nfe_r
