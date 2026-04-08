@@ -19,6 +19,11 @@ total_steps: 10000000
 batch_size: 4096
 buffer_size: 32768
 
+# Competitive Pairings
+algorithms: [["ct_gmarl"], ["ct_gmarl"]]
+blue_algorithm: "ct_gmarl"
+red_algorithm: "ct_gmarl"
+
 # Weights & Biases
 wandb:
   mode: "online"
