@@ -111,7 +111,7 @@ class RMAPPOAgent(BaseAgent):
 
         if not isinstance(h_prev, tuple):
             h_prev = (h_prev, torch.zeros_like(h_prev))
-            
+
         h_new = self.lstm(obs, h_prev)
 
         logits_type, logits_target = self.actor(h_new[0], mask)
