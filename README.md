@@ -83,12 +83,25 @@ graph LR
 
 ```bash
 ct_gmarl/
-├── conf/               # Hydra configurations (Algorithm, Env, Hardware)/
+├── conf/                    # Hydra Experiment Configurations
+│   ├── algorithm/           # RL Algorithm hyperparams (PPO, QMIX)
+│   ├── env/                 # NetForge_RL Environment settings (100-node)
+│   ├── model/               # CT-GMARL architecture specific configs
+│   └── research/            # Pre-configured experimental matrix runs
 ├── src/
-│   ├── engine/         # NetForge_RL Hypervisors (Mock/Docker)
-│   └── models/         # CT-GMARL PyTorch implementations (ODE/GAT)
-├── train.py            # Primary entry point for training
-└── pyproject.toml      # Dependency management
+│   ├── engine/              # NetForge_RL POSMDP Engine
+│   │   ├── hypervisor/      # Mock vs. Docker Hypervisor logic
+│   │   ├── suite.py         # ForgeSuite orchestration
+│   │   └── telemetry.py     # SIEM NLP Log Encoding pipeline
+│   ├── models/              # Neural Architecture Implementations
+│   │   ├── ct_gmarl/        # Neural ODE + GAT Processor logic
+│   │   └── baselines/       # R-MAPPO and QMIX implementations
+│   └── utils/               # Metric export, logging, and seed management
+├── diagrams/                # Exported training plots and action heatmaps
+│   ├── ctg/                 # CT-GMARL specific heatmaps
+│   └── rmappo/              # R-MAPPO baseline heatmaps
+├── train.py                 # Primary entry point for training and evaluation
+└── pyproject.toml           # Dependency and packaging management
 ```
 
 ---
