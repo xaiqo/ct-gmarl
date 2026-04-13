@@ -1,7 +1,7 @@
 # Event-Driven Temporal Graph Networks for Asynchronous Multi-Agent Cyber Defense
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Academic Paper: Preprint](https://img.shields.io/badge/Paper-Preprint-red.svg)](#citation) -> tb linked
+[![arXiv](https://img.shields.io/badge/arXiv-2604.09523-b31b1b.svg)](https://arxiv.org/abs/2604.09523)
 
 A MARL framework for bridging the Sim2Real gap in autonomous cyber defense using **NetForge_RL** (an asynchronous POSMDP simulator) and **CT-GMARL** (a Continuous-Time ODE-based Graph architecture).
 
@@ -141,24 +141,18 @@ We define **Zero-Shot Sim2Real Transfer** as evaluating the converged policy dir
 
 ---
 
-## Citation -> tb edited
+## Citation
 
 If you use **NetForge_RL** or the **CT-GMARL** architecture in your research, please cite our work:
 
 ```bibtex
-@misc{jankowski2026event,
-  title={Event-Driven Temporal Graph Networks for Asynchronous Multi-Agent Cyber Defense},
-  author={Igor Jankowski},
-  year={2026},
-  eprint={},
-  archivePrefix={arXiv},
-  primaryClass={},
-  url={},
+@misc{jankowski2026eventdriventemporalgraphnetworks,
+      title={Event-Driven Temporal Graph Networks for Asynchronous Multi-Agent Cyber Defense in NetForge_RL}, 
+      author={Igor Jankowski},
+      year={2026},
+      eprint={2604.09523},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2604.09523}, 
 }
 ```
-
----
-
-## License
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details. 
-*Note: The Vulhub containers are external dependencies and remain under their respective licenses.*
