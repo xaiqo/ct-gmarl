@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![arXiv](https://img.shields.io/badge/arXiv-2604.09523-b31b1b.svg)](https://arxiv.org/abs/2604.09523)
+[![Gist Science](https://img.shields.io/badge/Read-Gist_Science-1e90ff.svg)](https://gist.science/paper/2604.09523#gist)
 
 A MARL framework for bridging the Sim2Real gap in autonomous cyber defense using **NetForge_RL** (an asynchronous POSMDP simulator) and **CT-GMARL** (a Continuous-Time ODE-based Graph architecture).
 
